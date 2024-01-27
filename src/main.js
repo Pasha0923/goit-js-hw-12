@@ -23,8 +23,9 @@ let page = 1;
 let query = '';
 let maxPage = 0;
 
-const BAZE_URL = 'https://pixabay.com/api';
+const BASE_URL = 'https://pixabay.com/api';
 const API_KEY = '41870399-9b44301246ceb98c07efd626a';
+
 refs.searchForm.addEventListener('submit', handleSearch); // обробник подій на форму подія submit
 // пишемо функцію для того щоб робити запит
 // функція,яка описує обробник події  handleSearch
@@ -34,13 +35,13 @@ async function handleSearch(event) {
   refs.photoList.innerHTML = ''; // очищаємо вміст галереї (перед здійсненням нового пошуку вміст
   // галереї очищаємо щоб уникнути переплутання результатів)
   refs.loader.classList.remove(hiddenClass);
-  page = 1;
+  page = 1; // коли робимо запит на нову тему сторінки очищаються
   const form = event.currentTarget;
   query = form.elements.query.value; // дістаємо значення з форми
 
   // перевірка на пустий рядок запиту
 
-  if (query === '') {
+  if (!query) {
     // refs.loadMoreBtn.disabled = false;
     refs.loadMoreBtn.classList.add(hiddenClass);
     refs.loader.classList.add(hiddenClass);
@@ -59,34 +60,52 @@ async function handleSearch(event) {
     maxPage = Math.ceil(totalHits / 40);
     console.log(maxPage);
     createMarkuPhoto(hits, refs.photoList); // додали нові елементи до списку зображень
-    refreshPage.refresh();
+
     // перевірка на те, чи показувати кнопку при першому запиті (при сабміті форми),
     // якщо кількість обʼєктів відповіді більша за нуль та кількість обʼєктів відповіді не рівна
     // загальної кількості результатів, то показуємо кнопку.Інакше - не показуємо
     if (hits.length > 0 && hits.length !== totalHits) {
       refs.loadMoreBtn.classList.remove(hiddenClass);
       refs.loadMoreBtn.addEventListener('click', handleButton);
+      // якщо нічого не знайдено , тобто об'єкт відповіді не знайдений
+    } else if (!hits.length) {
+      refs.loadMoreBtn.classList.add(hiddenClass);
+      iziToast.error({
+        title: '❌',
+        messageColor: 'white',
+        message:
+          'Sorry, we dont have any pictures for your request.Please enter correct request!',
+        position: 'bottomCenter',
+        color: 'red',
+      });
     } else {
       refs.loadMoreBtn.classList.add(hiddenClass);
     }
   } catch (error) {
-    console.log(error.message);
+    console.log(error);
   } finally {
     refs.loader.classList.add(hiddenClass);
     form.reset();
   }
 }
-
 async function searchPhoto(value, page = 1) {
-  const resp = await axios.get(
-    `${BAZE_URL}/?key=${API_KEY}&q=${value}&image_type=photo&orientation=horizontal&safesearch=true&per_page=40&page=${page}`
-  );
-
-  // витягуємо масив об'єктів
-  //   console.log(resp);
-  return resp.data;
+  try {
+    const resp = await axios.get(
+      `${BASE_URL}/?key=${API_KEY}&q=${value}&image_type=photo&orientation=horizontal&safesearch=true&per_page=40&page=${page}`
+    );
+    // витягуємо масив об'єктів
+    console.log(resp.data);
+    return resp.data;
+  } catch (error) {
+    iziToast.error({
+      title: 'Error',
+      titleSize: '30',
+      messageSize: '25',
+      message: 'Sorry! Try later! Server not working',
+    });
+    console.error(error.message);
+  }
 }
-
 // обробник подій на кнопку LOAD MORE
 
 async function handleButton() {
@@ -143,5 +162,6 @@ function createMarkuPhoto(data) {
     )
     .join('');
   // додаємо нові елементи до галереї
-  refs.photoList.innerHTML = markup;
+  refs.photoList.insertAdjacentHTML('beforeend', markup);
+  refreshPage.refresh();
 }
